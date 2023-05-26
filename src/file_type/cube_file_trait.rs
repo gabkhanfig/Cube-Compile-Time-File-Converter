@@ -1,3 +1,4 @@
+use std::fmt::format;
 use std::fs;
 use std::path::Path;
 use std::ffi::OsStr;
@@ -55,6 +56,18 @@ fn make_cpp_contents_from_file_contents(file_contents: String) -> String {
 
 fn file_exists(file_path: &str) -> bool {
     return std::path::Path::new(file_path).exists();
+}
+
+fn vec_bytes_to_cpp_string(bytes: &Vec<u8>) -> String {
+    let mut cpp_string = String::from("{ ");
+    for i in 0..bytes.len() {
+        cpp_string.push_str(&format!("{}", bytes[i]));
+        if(i != bytes.len() - 1) {
+            cpp_string.push_str(", ");
+        }
+    }
+    cpp_string.push_str(" }");
+    return cpp_string;
 }
 
 pub trait CubeFile {
@@ -138,33 +151,38 @@ impl ImageFile {
 
 impl CubeFile for ImageFile {
     fn cpp_string(&self) -> String {
-        format!("{}{}{}{:?}{}{}{}{}{}{}{}{}{}{}{}{}",
-            "const unsigned char* ",
+        format!("{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+            "unsigned char ", // Apparently the c++ compile doesn't like const array's being extern
             self.variable_name,
-            " = ",
-            self.contents,
+            "[",
+            self.total_bytes,
+            "] = ",
+            vec_bytes_to_cpp_string(&self.contents),
             ";\nconst unsigned int ",
             self.variable_name,
             "_width = ",
             self.width,
-            "\nconst unsigned int ",
+            ";\nconst unsigned int ",
             self.variable_name,
             "_height = ",
             self.height,
-            "\nconst unsigned int ",
+            ";\nconst unsigned int ",
             self.variable_name,
             "_total_bytes = ",
             self.total_bytes,
+            ';',
         )
     }
 
     fn header_string(&self) -> String {
-        format!("{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        format!("{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
             "// Generated image file from ",
             self.file_path,
-            "\nextern const unsigned char* ",
+            "\nextern unsigned char ",
             self.variable_name,
-            ";\n// Generated image pixel width from ",
+            "[",
+            self.total_bytes,
+            "];\n// Generated image pixel width from ",
             self.file_path,
             "\nextern const unsigned int ",
             self.variable_name,
